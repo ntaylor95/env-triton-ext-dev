@@ -1,0 +1,7 @@
+*.iml
+.idea/
+
+.prisebox/
+certs.env
+mounts.env
+auto-vault/mounts/vault/ca/

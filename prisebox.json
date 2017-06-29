@@ -4,25 +4,25 @@
     "tls":false,
     "scale": {
       "consul": 3,
-      "grafana": 1,
-      "logspout": 1,
-      "prometheus": 1,
-      "ste": 5,
+      "grafana": 0,
+      "logspout": 0,
+      "prometheus": 0,
+      "ste": 1,
       "traefik": 1,
       "vault": 1
     }
   },
 
   "preCreate": [
-    "docker run -e MOUNTS_JSON_BASE64=$(dir-to-json util-tlsgen/mounts | base64) --rm homepay/util-tlsgen:0.0.1-master-20170426T222338Z.99c6349 config.json > .prisebox/certs.json",
+    "docker run -e MOUNTS_JSON_BASE64=$(dir-to-json util-tlsgen/mounts | base64 -w 0) --rm homepay/util-tlsgen:latest config.json > .prisebox/certs.json",
     "mkdir -p auto-vault/mounts/vault/ca",
     "cat .prisebox/certs.json | jq -r '.ca.intrca.key' | base64 --decode > auto-vault/mounts/vault/ca/pki.key",
     "cat .prisebox/certs.json | jq -r '.ca.intrca.crt' | base64 --decode > auto-vault/mounts/vault/ca/pki.crt",
     "cat .prisebox/certs.json | json-to-env ROOT_CA_CRT_BASE64=.ca.rootca.crt > shared/certs.env",
     "cat .prisebox/certs.json | json-to-env TEMP_CA_CRT_BASE64=.ca.tempca.crt TEMP_KEY_BASE64=.apps.consul.key TEMP_CRT_BASE64=.apps.consul.crt > auto-consul/certs.env",
     "cat .prisebox/certs.json | json-to-env TEMP_CA_CRT_BASE64=.ca.tempca.crt TEMP_KEY_BASE64=.apps.vault.key TEMP_CRT_BASE64=.apps.vault.crt > auto-vault/certs.env",
-    "echo MOUNTS_JSON_BASE64=$(dir-to-json auto-vault/mounts | base64) > auto-vault/mounts.env",
-    "echo MOUNTS_JSON_BASE64=$(dir-to-json auto-logspout/mounts | base64) > auto-logspout/mounts.env"
+    "echo MOUNTS_JSON_BASE64=$(dir-to-json auto-vault/mounts | base64 -w 0) > auto-vault/mounts.env",
+    "echo MOUNTS_JSON_BASE64=$(dir-to-json auto-logspout/mounts | base64 -w 0) > auto-logspout/mounts.env"
   ],
 
   "postCreate": [

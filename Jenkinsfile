@@ -23,7 +23,7 @@ node() {
 
         echo "Setup stage"
         props=getProperties("${env.WORKSPACE}/auto-vault/environment.env")
-        props.setProperty("COMPOSE_PROJECT_NAME", "envtritonextprod")
+        props.setProperty("COMPOSE_PROJECT_NAME", "envtritonextstaging")
         props.setProperty("PRIVATE_KEY", privateKey)
         configureTestEnv(props, env)
 

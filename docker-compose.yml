@@ -40,23 +40,6 @@ vault:
     vault server
       -config=/etc/vault/vault.json
 
-prometheus:
-  labels:
-    triton.cns.services: "prometheus"
-  image: homepay/auto-prometheus:0.0.1-master-20170626T203204Z.85dbf9b
-  restart: always
-  env_file:
-    - ./shared/certs.env
-    - ./shared/environment.env
-    - ./auto-prometheus/environment.env
-  dns:
-    - 127.0.0.1
-  command: >
-    containerpilot
-    prometheus
-      -storage.local.path=/prometheus/data
-      -config.file=/etc/prometheus/prometheus.yml
-
 traefik:
   labels:
     triton.cns.services: "traefik"
@@ -89,28 +72,3 @@ ste:
   command: >
     containerpilot
     ste
-
-grafana:
-  image: homepay/auto-grafana:0.0.1-master-20170626T205334Z.e280f3a
-  restart: always
-  env_file:
-    - ./shared/certs.env
-    - ./shared/environment.env
-    - ./auto-grafana/environment.env
-  dns:
-    - 127.0.0.1
-  command: >
-    containerpilot
-    /grafana/bin/grafana-server --homepath "/grafana" web
-
-logspout:
-  image: homepay/auto-logspout:0.0.1-master-20170526T205938Z.1a0dd60
-  restart: always
-  env_file:
-    - ./shared/certs.env
-    - ./shared/environment.env
-    - ./auto-logspout/mounts.env
-    - ./auto-logspout/environment.env
-  command: >
-    containerpilot
-    init logspout syslog+tls://logs-01.loggly.com:6514
