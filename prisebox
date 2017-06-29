@@ -1,0 +1,291 @@
+#!/bin/bash
+
+export COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-$(echo "$(basename $(pwd))" | sed 's/-//g')}
+
+if [ $(uname -s) == "Linux" ]; then
+    shopt -s expand_aliases
+    alias base64="base64"
+fi
+
+_log() {
+
+    PREFIX="[$(basename ${0})]"
+
+    if [ -n "${1}" ]; then
+        echo "${PREFIX} ${@}"
+    else
+        while read LINE; do
+            echo "${PREFIX} ${LINE}"
+        done
+    fi
+
+}
+
+attach() {
+    docker exec -it ${COMPOSE_PROJECT_NAME}_${1} /bin/bash
+}
+
+_set_tls(){
+
+    CONFIG_JSON=$(<${CONFIG_FILE})
+
+    USE_TLS="$(jq -cr '.environment.tls' <(echo "${CONFIG_JSON}"))"
+
+    if [ "${USE_TLS}" == "true" ]; then
+        export PRISEBOX_TLS_ENABLED="--tls"
+       else
+        export PRISEBOX_TLS_ENABLED=" "
+    fi
+
+}
+
+json-to-env() {
+
+    IN=$(</dev/stdin)
+
+    for PAIR in "${@}"; do
+
+        IFS="=" read VAR_NAME JSON_PATH <<< "${PAIR}"
+        LINE="${VAR_NAME}=$(sed -e 's/"//g' <<< $(jq -c ''"${JSON_PATH}"'' <<< ${IN}))"
+
+        echo "${LINE}"
+
+    done
+
+}
+
+dir-to-json() {
+
+    DIR="${1}"
+
+    TMP_JSON="${WORKDIR}/${1}.json"
+    mkdir -p $(dirname ${TMP_JSON})
+
+    echo "{}" > ${TMP_JSON}
+
+    jq -c -R '. as $filepath | { in: $filepath, out: ltrimstr("'"${DIR}"'") | ltrimstr("/") }' <(find ${DIR} -type f) | \
+    while read -r FILE_JSON; do
+
+        OUT_JSON=$(<${TMP_JSON})
+
+        eval "$(jq -r '@sh "
+            SRC=\(.in)
+            DST=\(.out)
+        "' <(echo "${FILE_JSON}"))"
+
+        FILE=$(cat "${SRC}" | base64)
+
+        jq -c '. as $out | "'"${DST}"'" as $dst | $dst | split("/") as $arr | $out | setpath($arr; "'"${FILE}"'")' <(echo "${OUT_JSON}") > ${TMP_JSON}
+
+    done
+
+    cat ${TMP_JSON}
+
+}
+
+create() {
+
+    _log "Creating environment"
+
+    CONFIG_JSON=$(<${CONFIG_FILE})
+
+    # Execute preCreate commands
+    jq -r '.preCreate | if (. | type) == "array" then .[] else . end' <(echo "${CONFIG_JSON}") | \
+    while read PRE_CREATE_COMMAND; do
+
+        _log "Executing preCreate command:"
+
+        echo "[${PRE_CREATE_COMMAND}]"
+        eval "${PRE_CREATE_COMMAND}"
+
+        _log "Command exited with status: ${?}"
+
+    done
+
+    # Stand up environment
+    echo "[docker-compose up -d]"
+    docker-compose up -d
+    echo
+
+    # Set to initial scale
+    scale $(jq -cr '.environment.scale | to_entries[] | "\(.key)=\(.value)"' <(echo "${CONFIG_JSON}") | tr '\n' ' ')
+
+    # Let environment come up
+    echo "Waiting for environment...."
+
+    until docker exec ${COMPOSE_PROJECT_NAME}_consul_1 consul members &>/dev/null; do
+        printf .
+        sleep 1
+    done
+
+    printf ...
+    sleep 10
+
+    # Execute postCreate commands
+    jq -r '.postCreate | if (. | type) == "array" then .[] else . end' <(echo "${CONFIG_JSON}") | \
+    while read POST_CREATE_COMMAND; do
+
+        _log "Executing postCreate command:"
+
+        echo "[${POST_CREATE_COMMAND}]"
+        eval "${POST_CREATE_COMMAND}"
+
+        _log "Command exited with status: ${?}"
+
+    done
+
+    _log "Environment created."
+
+    ps
+
+}
+
+update() {
+    echo "update" > /dev/null
+}
+
+scale() {
+
+    _log "Setting scale: $@"
+
+    echo
+    echo "[docker-compose scale $@]"
+    docker-compose scale $@
+    echo
+
+}
+
+logs() {
+
+    # TODO: Support options like -f
+
+    docker-compose logs $@ 2> /dev/null
+
+    if [ $? -eq 1 ]; then
+        docker logs ${COMPOSE_PROJECT_NAME}_${@}
+    fi
+
+}
+
+ps() {
+    docker-compose ps
+}
+
+destroy() {
+
+    _log "Destroying environment"
+
+    echo
+    echo "[docker-compose down]"
+    docker-compose down
+    echo
+
+}
+
+recreate() {
+    destroy && create
+}
+
+clean() {
+
+    if [ $(basename $(pwd)) == "env-local" ]; then
+
+        destroy 2> /dev/null
+
+        _log "Stopping all running containers..."
+        docker stop $(docker ps -a -q) 2> /dev/null
+
+        _log "Removing all containers..."
+        docker rm -v $(docker ps -a -q) 2> /dev/null
+
+        _log "Removing all images..."
+        docker rmi -f $(docker images -q) 2> /dev/null
+
+        _log "Removing all volumes..."
+        docker volume rm $(docker volume ls -qf dangling=true) 2> /dev/null
+
+    else
+
+        1>&2 _log "Clean is a sensitive operation and has been disabled in non-local environments."
+        1>&2 _log "If you're sure of what you're doing, run the commands manually."
+        exit 1
+
+    fi
+
+}
+
+admin-unseal() {
+    docker exec ${COMPOSE_PROJECT_NAME}_vault_1 admin unseal ${@}
+}
+
+admin-update-ca() {
+
+    SHAMIR_SHARES="$@"
+    MOUNTS=$(dir-to-json auto-vault/mounts | base64)
+
+    docker exec ${COMPOSE_PROJECT_NAME}_vault_1 bash -c "MOUNTS_JSON_BASE64=${MOUNTS} admin update-ca ${SHAMIR_SHARES}"
+
+}
+
+admin-update-policies() {
+
+    SHAMIR_SHARES="$@"
+    MOUNTS=$(dir-to-json auto-vault/mounts | base64)
+
+    docker exec ${COMPOSE_PROJECT_NAME}_vault_1 bash -c "MOUNTS_JSON_BASE64=${MOUNTS} admin update-policies ${SHAMIR_SHARES}"
+
+}
+
+admin-authorize-apps() {
+
+    SHAMIR_SHARES="$@"
+    MOUNTS=$(dir-to-json auto-vault/mounts | base64)
+
+    docker exec ${COMPOSE_PROJECT_NAME}_vault_1 bash -c "MOUNTS_JSON_BASE64=${MOUNTS} admin authorize-apps ${SHAMIR_SHARES}"
+
+}
+
+admin-rekey() {
+    docker exec ${COMPOSE_PROJECT_NAME}_vault_1 admin rekey ${@}
+}
+
+admin-fetch-keys() {
+    docker exec ${COMPOSE_PROJECT_NAME}_vault_1 admin fetch-keys ${@}
+}
+
+admin() {
+
+    ADMIN_CMD=$1
+
+    if [ ! -z "${ADMIN_CMD}" ]; then
+
+        shift 1
+
+        admin-${ADMIN_CMD} "$@"
+
+        exit
+
+    fi
+
+}
+
+## --
+
+CMD=$1
+
+if [ ! -z "${CMD}" ]; then
+
+    CONFIG_FILE="prisebox.json"
+    WORKDIR=".prisebox"
+
+    mkdir -p ${WORKDIR}
+
+    _set_tls
+
+    shift 1
+
+    "${CMD}" "$@"
+
+    exit
+
+fi

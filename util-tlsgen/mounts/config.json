@@ -1,0 +1,65 @@
+{
+  "roles": {
+    "temp": {
+      "max_ttl": "24h",
+      "key_type": "ec",
+      "key_bits": 384,
+      "allow_any_name": true,
+      "enforce_hostnames": false
+    }
+  },
+  "authorities": {
+    "tempca": {
+      "out": "ca/",
+      "ttl": "24h",
+      "key_type": "ec",
+      "key_bits": 384,
+      "roles": [
+        "temp"
+      ]
+    },
+    "rootca": {
+      "out": "ca/",
+      "ttl": "87600h",
+      "key_type": "ec",
+      "key_bits": 384
+    },
+    "intrca": {
+      "ca": "rootca",
+      "out": "ca/",
+      "ttl": "8760h",
+      "key_type": "ec",
+      "key_bits": 384
+    }
+  },
+  "certificates": {
+    "consul": {
+      "ca": "tempca",
+      "role": "temp",
+      "out": "apps/",
+      "alt_names": [
+        "localhost",
+        "server.dc1.consul",
+        "consul.svc.bd2c7b8a-8c9c-4759-d140-83d26e127378.us-sw-1.cns.joyent.com"
+      ],
+      "ip_sans": [
+        "127.0.0.1"
+      ],
+      "ttl": "12h"
+    },
+    "vault": {
+      "ca": "tempca",
+      "role": "temp",
+      "out": "apps/",
+      "alt_names": [
+        "localhost",
+        "vault.service.consul",
+        "vault.svc.bd2c7b8a-8c9c-4759-d140-83d26e127378.us-sw-1.cns.joyent.com"
+      ],
+      "ip_sans": [
+        "127.0.0.1"
+      ],
+      "ttl": "12h"
+    }
+  }
+}

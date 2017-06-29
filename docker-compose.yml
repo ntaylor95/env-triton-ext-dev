@@ -1,0 +1,116 @@
+consul:
+  labels:
+    triton.cns.services: "consul"
+  image: homepay/auto-consul:0.0.1-master-20170627T205713Z.c1a78e3
+  restart: always
+  env_file:
+    - ./shared/certs.env
+    - ./shared/environment.env
+    - ./auto-consul/certs.env
+    - ./auto-consul/environment.env
+  dns:
+    - 127.0.0.1
+  ports:
+    - 8500
+  command: >
+    containerpilot
+    consul agent
+      -ui
+      -server
+      -bootstrap-expect 2
+      -config-file /etc/consul/consul.json
+
+vault:
+  labels:
+    triton.cns.services: "vault"
+  image: homepay/auto-vault:0.0.1-master-20170626T202913Z.b810632
+  restart: always
+  env_file:
+    - ./shared/certs.env
+    - ./shared/environment.env
+    - ./auto-vault/certs.env
+    - ./auto-vault/mounts.env
+    - ./auto-vault/environment.env
+  dns:
+    - 127.0.0.1
+  cap_add:
+    - IPC_LOCK
+  command: >
+    containerpilot
+    vault server
+      -config=/etc/vault/vault.json
+
+prometheus:
+  labels:
+    triton.cns.services: "prometheus"
+  image: homepay/auto-prometheus:0.0.1-master-20170626T203204Z.85dbf9b
+  restart: always
+  env_file:
+    - ./shared/certs.env
+    - ./shared/environment.env
+    - ./auto-prometheus/environment.env
+  dns:
+    - 127.0.0.1
+  command: >
+    containerpilot
+    prometheus
+      -storage.local.path=/prometheus/data
+      -config.file=/etc/prometheus/prometheus.yml
+
+traefik:
+  labels:
+    triton.cns.services: "traefik"
+  image: homepay/auto-traefik:0.0.1-master-20170627T211344Z.879d465
+  restart: always
+  env_file:
+    - ./shared/certs.env
+    - ./shared/environment.env
+    - ./auto-traefik/environment.env
+  dns:
+    - 127.0.0.1
+  ports:
+    - 80
+    - 443
+  command: >
+    containerpilot
+    traefik --configfile=/etc/traefik/traefik.toml
+
+ste:
+  labels:
+    triton.cns.services: "ste"
+  image: homepay/auto-ste:0.0.3-master-20170627T163048Z.c79174f
+  restart: always
+  env_file:
+    - ./shared/certs.env
+    - ./shared/environment.env
+    - ./auto-ste/environment.env
+  dns:
+    - 127.0.0.1
+  command: >
+    containerpilot
+    ste
+
+grafana:
+  image: homepay/auto-grafana:0.0.1-master-20170626T205334Z.e280f3a
+  restart: always
+  env_file:
+    - ./shared/certs.env
+    - ./shared/environment.env
+    - ./auto-grafana/environment.env
+  dns:
+    - 127.0.0.1
+  command: >
+    containerpilot
+    /grafana/bin/grafana-server --homepath "/grafana" web
+
+logspout:
+  image: homepay/auto-logspout:0.0.1-master-20170526T205938Z.1a0dd60
+  restart: always
+  env_file:
+    - ./shared/certs.env
+    - ./shared/environment.env
+    - ./auto-logspout/mounts.env
+    - ./auto-logspout/environment.env
+  command: >
+    containerpilot
+    init logspout syslog+tls://logs-01.loggly.com:6514

@@ -1,0 +1,52 @@
+{
+  "vault": {
+    "app_id": "a8957e8c-d12e-4ef3-8e3d-38b9a329697d",
+    "cidr_blocks": ["192.168.128.0/22"],
+    "policies": [
+      "apps",
+      "vault"
+    ]
+  },
+  "consul": {
+    "app_id": "e2b9452d-6c21-4f08-a2b7-cc72e445d295",
+    "cidr_blocks": ["192.168.128.0/22"],
+    "policies": [
+      "apps"
+    ]
+  },
+  "ste": {
+    "app_id": "dec925cd-f4ec-49d1-9964-71f1f7a29391",
+    "cidr_blocks": ["192.168.128.0/22"],
+    "policies": [
+      "apps"
+    ]
+  },
+  "traefik": {
+    "app_id": "e3722b16-c492-4b9a-90bc-6e3136b20483",
+    "cidr_blocks": ["192.168.128.0/22"],
+    "policies": [
+      "apps"
+    ]
+  },
+  "prometheus": {
+    "app_id": "953d707c-c18f-4e47-a011-9720a661e18c",
+    "cidr_blocks": ["192.168.128.0/22"],
+    "policies": [
+      "apps"
+    ]
+  },
+  "grafana": {
+    "app_id": "cac4ffaf-4c32-4ee4-a023-e5a56ad76747",
+    "cidr_blocks": ["192.168.128.0/22"],
+    "policies": [
+      "apps"
+    ]
+  },
+  "logspout": {
+    "app_id": "beebb6b6-ba70-4776-a7c6-9e4ca571b41f",
+    "cidr_blocks": ["192.168.128.0/22"],
+    "policies": [
+      "apps"
+    ]
+  }
+}
