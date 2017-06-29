@@ -4,9 +4,6 @@
     "tls":false,
     "scale": {
       "consul": 3,
-      "grafana": 0,
-      "logspout": 0,
-      "prometheus": 0,
       "ste": 1,
       "traefik": 1,
       "vault": 1
